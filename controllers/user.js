@@ -1,250 +1,116 @@
-//moduler 
-var mysql = require('mysql');
+import mysql from 'mysql2';
+import bcrypt from 'bcrypt';
 
+const pool = mysql.createPool({
+    connectionLimit: 10,
+    host: "localhost",
+    user: "root",
+    password: "Password",
+    database: "hotel_management"
+}).promise();
 
+export const authentication = (req, res, next) => {
+    req.session.mail ? next() : res.render('user/home', { user: "" });
+};
 
-//authentication check
-exports.authentication = (req, res, next) => {
+export const getHome = (req, res) => {
+    res.render('user/home', { user: req.session.mail || "" });
+};
 
-   if (req.session.mail != undefined) {
-      next();
-   }
-   else {
-      res.render('user/home', { user: "" });
-   }
-}
+export const getLogin = (req, res) => {
+    res.render('user/loginAccount', { user: "", msg: [], err: [] });
+};
 
-// show the home page
-exports.getHome = (req, res, next) => {
+export const postLogin = async (req, res) => {
+    try {
+        const [results] = await pool.query("SELECT * FROM user WHERE email = ?", [req.body.mail]);
+        if (results.length && bcrypt.compareSync(req.body.pass, results[0].password)) {
+            req.session.mail = results[0].email;
+            res.render('user/home', { user: results[0].email });
+        } else {
+            res.render('user/loginAccount', { user: "", msg: [], err: ["Invalid Email or Password"] });
+        }
+    } catch (err) {
+        res.status(500).send("Database Error");
+    }
+};
 
-   if (req.session.mail != undefined) {
-      return res.render('user/home', { user: req.session.mail });
-   }
-   else {
-      return res.render('user/home', { user: "" });
-   }
-}
+export const getCreateAccount = (req, res) => {
+    res.render('user/createAccount', { user: "", msg: [], err: [] });
+};
 
-//show the login page
-exports.getLogin = (req, res, next) => {
-   res.render('user/loginAccount', { user: "", msg: [], err: [] });
-}
+export const postCreateAccount = async (req, res) => {
+    if (req.body.pass !== req.body.con_pass) {
+        return res.render("user/createAccount", { user: "", msg: [], err: ["Passwords do not match"] });
+    }
+    try {
+        const hashedPassword = bcrypt.hashSync(req.body.pass, 10);
+        await pool.query("INSERT INTO user (name, email, phone, password) VALUES (?, ?, ?, ?)", 
+            [req.body.name, req.body.mail, req.body.phone, hashedPassword]);
+        res.render('user/loginAccount', { user: "", msg: ["Account Created Successfully"], err: [] });
+    } catch (err) {
+        res.status(500).send("Database Error");
+    }
+};
 
-//post page of login
-exports.postLogin = (req, res, next) => {
+export const getCategory = (req, res) => {
+    res.render('user/category', { user: req.session.mail });
+};
 
-   var connectDB = mysql.createConnection({
-      host: "localhost",
-      user: "root",
-      password: "",
-      database: "hotel"
-   });
+export const postCategory = async (req, res) => {
+    try {
+        const [results] = await pool.query("SELECT * FROM category WHERE name = ? AND type = ? AND available > 0", 
+            [req.body.cat, req.body.type]);
+        res.render('user/showCategory', { user: req.session.mail, rooms: results });
+    } catch (err) {
+        res.status(500).send("Database Error");
+    }
+};
 
-   data = "SELECT * " +
-      "FROM  user " +
-      "WHERE email = " + mysql.escape(req.body.mail) +
-      " AND password = " + mysql.escape(req.body.pass);
+export const postBooking = (req, res) => {
+    res.render('user/bookingConfirm.ejs', {
+        user: req.session.mail,
+        name: req.body.name,
+        type: req.body.type,
+        cost: req.body.cost
+    });
+};
 
+export const postStatus = async (req, res) => {
+    try {
+        await pool.query("INSERT INTO bookingstatus (email, name, type, roomWant, status, date) VALUES (?, ?, ?, ?, 0, ?)", 
+            [req.session.mail, req.body.name, req.body.type, req.body.roomWant, req.body.date]);
+        getShowStatus(req, res);
+    } catch (err) {
+        res.status(500).send("Database Error");
+    }
+};
 
-   connectDB.query(data, (err, result) => {
-      if (err) throw err; // show if any error have
-      else {
-         if (result.length) {
-            req.session.mail = result[0].email;
-            res.render('user/home', {user: result[0].email});
-         }
-         else {
-            res.render('user/loginAccount', { user: "", msg: [], err: ["Please Check Your information again"] });
-         }
+export const getShowStatus = async (req, res) => {
+    try {
+        const [results] = await pool.query("SELECT * FROM bookingstatus WHERE email = ?", [req.session.mail]);
+        results.forEach(r => r.date = r.date.toString().slice(0, 15));
+        res.render('user/statusShow', { user: req.session.mail, msg: "", err: results.length ? "" : "No bookings found", data: results });
+    } catch (err) {
+        res.status(500).send("Database Error");
+    }
+};
 
-      }
-   })
+export const deleteBooking = async (req, res, next) => {
+    try {
+        await pool.query("DELETE FROM bookingstatus WHERE email = ? AND type = ? AND category = ? AND roomWant = ?", 
+            [req.body.mail, req.body.type, req.body.cat, req.body.want]);
+        next();
+    } catch (err) {
+        res.status(500).send("Database Error");
+    }
+};
 
-}
+export const getContact = (req, res) => {
+    res.render('user/contact', { user: req.session.mail || "" });
+};
 
-
-// show create account page
-exports.getCreateAccount = (req, res, next) => {
-   res.render('user/createAccount', { user: "", msg: [], err: [] })
-}
-
-//get data from user for create account
-exports.postCreateAccount = (req, res, next) => {
-
-   var connectDB = mysql.createConnection({
-      host: "localhost",
-      user: "root",
-      password: "",
-      database: "hotel"
-   });
-
-   var p1 = req.body.pass;
-   var p2 = req.body.con_pass;
-
-   if (p1 != p2) { // if password doesn't match 
-      return res.render("user/createAccount", { user: "", msg: [], err: ["Password Doesn't Match"] })
-   }
-
-   var data = "INSERT INTO user " +
-      " VALUES ( '" + req.body.name + "' ,'" + req.body.mail + "','" + req.body.phone + "','" + p1 + "')";
-
-   connectDB.query(data, (err, result) => {
-      if (err) throw err;// if db has error, show that 
-      else {
-         res.render('user/loginAccount', { user: "", msg: ["Account Create Successfuly"], err: [] }); //show login page
-      }
-   })
-}
-
-//get request for category
-exports.getCategory = (req, res, next) => {
-
-   res.render('user/category', { user: req.session.mail });
-}
-
-//post request of category
-exports.postCategory = (req, res, next) => {
-   //console.log(req.body);
-   var connectDB = mysql.createConnection({
-      host: "localhost",
-      user: "root",
-      password: "",
-      database: "hotel"
-   });
-
-   data = "SELECT * " +
-      " FROM  category " +
-      " WHERE name = " + mysql.escape(req.body.cat) +
-      " AND type = " + mysql.escape(req.body.type) +
-      " AND available > 0";
-
-   connectDB.query(data, (err, result) => {
-      if (err) throw err; //show if error found
-      else {
-         //console.log(result);
-         return res.render('user/showCategory', { user: req.session.mail, rooms: result })
-      }
-   })
-
-}
-
-// get booking data 
-exports.postBooking = (req, res, next) => {
-   // console.log(req.body);
-
-   res.render('user/bookingConfirm.ejs', { user: req.session.mail, name: req.body.name, type: req.body.type, cost: req.body.cost });
-}
-
-//post status request
-
-exports.postStatus = (req, res, next) => {
-
-   //console.log(req.body);
-   var connectDB = mysql.createConnection({
-      host: "localhost",
-      user: "root",
-      password: "",
-      database: "hotel"
-   });
-   var date = req.body.date;
-   //console.log(date)
-   data = "INSERT INTO bookingstatus " +
-      " VALUES ('" + req.session.mail + "','" + req.body.name + "','" + req.body.type + "','" + req.body.roomWant + "','" + 0 + "','" + date + "')"
-
-   data1 = "SELECT * " +
-      " FROM  bookingstatus " +
-      " WHERE email = " + mysql.escape(req.session.mail);
-      
-   connectDB.query(data, (err, reslt) => {
-      if (err) throw err;
-      else {
-         connectDB.query(data1, (err1, result) => {
-            for (i in result) {
-               var a = result[i].date
-               a = a.toString()
-               result[i].date = a.slice(0, 15);
-            }
-            res.render('user/statusShow', { user: req.session.mail, msg: "Your booking is placed", err: "", data: result });
-         })
-      }
-   })
-}
-
-
-//get status
-exports.getShowStatus = (req, res, next) => {
-
-   var connectDB = mysql.createConnection({
-      host: "localhost",
-      user: "root",
-      password: "",
-      database: "hotel"
-   });
-
-   data = "SELECT * " +
-      " FROM  bookingstatus " +
-      " WHERE email = " + mysql.escape(req.session.mail);
-
-   connectDB.query(data, (err, result) => {
-
-      if (err) throw err;
-      else {
-         for (i in result) {
-            var a = result[i].date
-            a = a.toString()
-            result[i].date = a.slice(0, 15);
-         }
-         if (result.length < 1) {
-            res.render('user/statusShow', { user: req.session.mail, msg: "", err: "You dont have any data", data: result });
-         }
-         else {
-            res.render('user/statusShow', { user: req.session.mail, msg: "", err: "", data: result });
-         }
-      }
-   })
-}
-
-
-//delete booking request
-exports.deleteBooking =(req,res,next)=>{
-   //console.log(req.body);
-   var connectDB = mysql.createConnection({
-      host: "localhost",
-      user: "root",
-      password: "",
-      database: "hotel"
-   });
-
-   data = "DELETE FROM bookingstatus " +
-   " WHERE email = " + mysql.escape(req.body.mail) +
-   " AND type = " + mysql.escape(req.body.type) +
-   " AND category = " + mysql.escape(req.body.cat)+
-   " AND roomWant = "+mysql.escape(req.body.want)
-  
-   connectDB.query(data,(err,result)=>{
-      if(err) throw err;
-      else{
-         next();
-      }
-   })
-
-}
-
-
-//show contact page
-exports.getContact =(req,res,next)=>{
-   if(req.session.mail== undefined){
-      res.render('user/contact', { user: "" });
-   }
-   else{
-      res.render('user/contact', { user: req.session.mail });
-   }
-   
-}
-
-//logout
-exports.logout = (req, res, next) => {
-   req.session.destroy();
-   res.render('user/home', { user: "" });
-
-}
+export const logout = (req, res) => {
+    req.session.destroy();
+    res.render('user/home', { user: "" });
+};

@@ -1,33 +1,28 @@
-const express = require('express');
-const path = require('path');
-
+import express from 'express';
+import * as adminController from '../controllers/admin.js';
 
 const router = express.Router();
 
-const adminControler = require('../controllers/admin');
-
-
 router.route('/')
-   .get(adminControler.getLogin) //get request
-   .post(adminControler.postLogin) // post request
+   .get(adminController.getLogin) // GET request
+   .post(adminController.postLogin); // POST request
 
-router.get('/logout',adminControler.logout) //get request   
+router.get('/logout', adminController.logout); // GET request  
 
-router.post('/chnagestatus',adminControler.postChnageStatus)// post change status
+router.post('/changestatus', adminController.postChangeStatus); // ✅ Fixed function name
 
 router.route('/addhotel')
-      .get(adminControler.getAddHotel) // get request for hotel add page
-      .post(adminControler.postAddHotel) // post request for hotel add to db
+      .get(adminController.getAddHotel) // GET request for hotel add page
+      .post(adminController.postAddHotel); // POST request for hotel add to DB
 
 router.route('/search')
-      .get(adminControler.getSearch)   // get request   
-      .post(adminControler.postSearch) // post request
+      .get(adminController.getSearch) // GET request   
+      .post(adminController.postSearch); // POST request
 
 router.route('/update')
-      .post(adminControler.getUpdate) //get update page for post request
-      
+      .get(adminController.getUpdate); // ✅ Fixed comment (GET request)
+
 router.route('/updateData')
-      .post(adminControler.updatePrevData) // update prev data      
+      .post(adminController.updatePrevData); // Update previous data      
 
-
-module.exports = router;
+export default router;

@@ -1,318 +1,190 @@
-var mysql = require('mysql');
-var formidable = require('formidable');
-const path = require('path');
+import mysql from 'mysql';
+import formidable from 'formidable';
+import path from 'path';
 
+// MySQL Connection Configuration
+const connectDB = mysql.createConnection({
+    host: "localhost",
+    user: "root",
+    password: "Password",
+    database: "hotel_management"
+});
 
-// login get request
-exports.getLogin = (req, res, next) => {
-    if (req.session.admin == undefined) {
-        res.render('admin/login', { msg: "", err: "" });
-    }
-    else {
-        var connectDB = mysql.createConnection({
-            host: "localhost",
-            user: "root",
-            password: "",
-            database: "hotel"
-        });
-        data1 = "SELECT * " +
-            "FROM  bookingstatus " +
-            "WHERE status = 0 ";
-        connectDB.query(data1, (err1, result1) => {
-            if (err1) throw err1;
-            else {
-                for (i in result1) {
-                    var a = result1[i].date;
-                    result1[i].date = a.toString().slice(0, 15);
-                }
-                return res.render('admin/index', { msg: "", err: "", data: result1 });
-            }
-        })
-    }
-
-}
-
-//login post request
-exports.postLogin = (req, res, next) => {
-
-    var connectDB = mysql.createConnection({
-        host: "localhost",
-        user: "root",
-        password: "",
-        database: "hotel"
-    });
-
-    data = "SELECT * " +
-        "FROM admin " +
-        "WHERE name = " + mysql.escape(req.body.name) +
-        "AND pass = " + mysql.escape(req.body.pass);
-
-    data1 = "SELECT * " +
-        "FROM  bookingstatus " +
-        "WHERE status = 0 ";
-
-    connectDB.query(data, (err, result) => {
-        if (err) throw err;
-        else {
-            if (result.length) {
-                req.session.admin = result[0].name;
-                connectDB.query(data1, (err1, result1) => {
-                    if (err1) throw err1;
-                    else {
-                        for (i in result1) {
-                            var a = result1[i].date;
-                            result1[i].date = a.toString().slice(0, 15);
-                        }
-                        return res.render('admin/index', { msg: "", err: "", data: result1 });
-                    }
-                })
-
-            }
-            else {
-                return res.render('admin/login', { msg: "", err: "Please Check Your Information Again" });
-            }
-        }
-    })
-}
-
-//change booking status
-exports.postChnageStatus = (req, res, next) => {
-    //console.log(req.body);
-
-    var connectDB = mysql.createConnection({
-        host: "localhost",
-        user: "root",
-        password: "",
-        database: "hotel"
-    });
-
-    var value = 0;
-
-    if (req.body.click == "Approve") {
-        value = 1;
-        data = "UPDATE bookingstatus " +
-        " SET  status = " + mysql.escape(value) +
-        " WHERE email = " + mysql.escape(req.body.mail) +
-        " AND type = " + mysql.escape(req.body.type) +
-        " AND category = " + mysql.escape(req.body.cat) +
-        " AND roomWant = " + mysql.escape(req.body.want)
-
-    } else {
-        data = "DELETE FROM bookingstatus " +
-        " WHERE email = " + mysql.escape(req.body.mail) +
-        " AND type = " + mysql.escape(req.body.type) +
-        " AND category = " + mysql.escape(req.body.cat) +
-        " AND roomWant = " + mysql.escape(req.body.want)
+// Login GET request
+export const getLogin = (req, res) => {
+    if (!req.session.admin) {
+        return res.render('admin/login', { msg: "", err: "" });
     }
     
-    data1 = "SELECT * " +
-        "FROM  bookingstatus " +
-        "WHERE status = 0 ";
-
-    connectDB.query(data, (err, result) => {
-        if (err) throw err;
-        else {
-            connectDB.query(data1, (err1, result1) => {
-                if (err1) throw err1;
-                else {
-                    for (i in result1) {
-                        var a = result1[i].date; 
-                        result1[i].date = a.toString().slice(0, 15);
-                    }
-                    return res.render('admin/index', { msg: "", err: "", data: result1 });
-                }
-            })
+    const query = "SELECT * FROM bookingstatus WHERE status = 0";
+    connectDB.query(query, (err, result) => {
+        if (err) {
+            console.error("Database error:", err);
+            return res.render('admin/login', { msg: "", err: "Database Error" });
         }
-    })
-
-}
-
-//get add hotel page
-
-exports.getAddHotel = (req, res, next) => {
-    res.render('admin/addhotel', { msg: "", err: "" });
-}
-
-//add new hotel info
-exports.postAddHotel = (req, res, next) => {
-   
-    var connectDB = mysql.createConnection({
-        host: "localhost",
-        user: "root",
-        password: "",
-        database: "hotel"
+        result.forEach(row => row.date = row.date.toString().slice(0, 15));
+        res.render('admin/index', { msg: "", err: "", data: result });
     });
+};
 
-    //var
-    var cat = "", type = "", cost = 0, avlvl = 0, des = ""
-   var imgPath=""
-    var wrong = 0;
+// Login POST request
+export const postLogin = (req, res) => {
+    const query = `SELECT * FROM admin WHERE name = ${mysql.escape(req.body.name)} AND pass = ${mysql.escape(req.body.pass)}`;
+    const query2 = "SELECT * FROM bookingstatus WHERE status = 0";
+
+    connectDB.query(query, (err, result) => {
+        if (err) {
+            console.error("Login Error:", err);
+            return res.render('admin/login', { msg: "", err: "Database Error" });
+        }
+
+        if (result.length) {
+            req.session.admin = result[0].name;
+            connectDB.query(query2, (err2, result2) => {
+                if (err2) {
+                    console.error("Booking Fetch Error:", err2);
+                    return res.render('admin/index', { msg: "", err: "Database Error", data: [] });
+                }
+                result2.forEach(row => row.date = row.date.toString().slice(0, 15));
+                res.render('admin/index', { msg: "", err: "", data: result2 });
+            });
+        } else {
+            res.render('admin/login', { msg: "", err: "Invalid Credentials" });
+        }
+    });
+};
+
+// Change booking status
+export const postChangeStatus = (req, res) => {
+    let query;
+    if (req.body.click === "Approve") {
+        query = `UPDATE bookingstatus SET status = 1 WHERE email = ${mysql.escape(req.body.mail)}
+                AND type = ${mysql.escape(req.body.type)} 
+                AND category = ${mysql.escape(req.body.cat)}
+                AND roomWant = ${mysql.escape(req.body.want)}`;
+    } else {
+        query = `DELETE FROM bookingstatus WHERE email = ${mysql.escape(req.body.mail)}
+                AND type = ${mysql.escape(req.body.type)} 
+                AND category = ${mysql.escape(req.body.cat)}
+                AND roomWant = ${mysql.escape(req.body.want)}`;
+    }
+
+    const fetchQuery = "SELECT * FROM bookingstatus WHERE status = 0";
+    connectDB.query(query, (err) => {
+        if (err) {
+            console.error("Status Update Error:", err);
+            return res.render('admin/index', { msg: "", err: "Database Error", data: [] });
+        }
+        connectDB.query(fetchQuery, (err2, result) => {
+            if (err2) {
+                console.error("Fetch Error:", err2);
+                return res.render('admin/index', { msg: "", err: "Database Error", data: [] });
+            }
+            result.forEach(row => row.date = row.date.toString().slice(0, 15));
+            res.render('admin/index', { msg: "Status Updated", err: "", data: result });
+        });
+    });
+};
+
+// Get Add Hotel page
+export const getAddHotel = (req, res) => {
+    res.render('admin/addhotel', { msg: "", err: "" });
+};
+
+// Post Add Hotel
+export const postAddHotel = (req, res) => {
+    let cat = "", type = "", cost = 0, avlvl = 0, des = "", imgPath = "";
+    let wrong = false;
 
     new formidable.IncomingForm().parse(req)
         .on('field', (name, field) => {
-            if (name === "cat") {
-                cat = field;
-            }
-            else if (name === "type") {
-                type = field;
-            }
-            else if (name === "cost") {
-                cost = parseInt(field);
-            }
-            else if (name === "avlvl") {
-                avlvl = parseInt(field);
-            }
-            else if (name === "des") {
-                des = field
-            }
-
+            if (name === "cat") cat = field;
+            else if (name === "type") type = field;
+            else if (name === "cost") cost = parseInt(field);
+            else if (name === "avlvl") avlvl = parseInt(field);
+            else if (name === "des") des = field;
         })
-        .on('file', (name, file) => {
-            // console.log('Uploaded file', name)
-            //   fs.rename(file.path,__dirname+"a")
-        })
-        .on('fileBegin', function (name, file) {
-            //console.log(mail);
-
-            var fileType = file.type.split('/').pop();
-            if (fileType == 'jpg' || fileType == 'png' || fileType == 'jpeg') {
-
-                a = path.join(__dirname, '../')
-                ///  console.log(__dirname)
-                //  console.log(a)
-                if (name === "img") {
-                    imgPath = (cat + type + cost + "." + fileType);
-                }
-                imgPath ='/assets/img/rooms/' + (cat + type + cost + "." + fileType)
-                file.path = a + '/public/assets/img/rooms/' + (cat + type + cost + "." + fileType); // __dirname
+        .on('fileBegin', (name, file) => {
+            const fileType = file.type.split('/').pop();
+            if (['jpg', 'png', 'jpeg'].includes(fileType)) {
+                const basePath = path.join(process.cwd(), 'public/assets/img/rooms/');
+                imgPath = `/assets/img/rooms/${cat + type + cost}.${fileType}`;
+                file.path = `${basePath}${cat + type + cost}.${fileType}`;
             } else {
-                console.log("Wrong File type")
-                wrong = 1;
-                res.render('admin/addhotel', { msg: "", err: "Wrong File type" });
+                wrong = true;
+                res.render('admin/addhotel', { msg: "", err: "Invalid File Type" });
             }
-        })
-        .on('aborted', () => {
-            console.error('Request aborted by the user')
-        })
-        .on('error', (err) => {
-            console.error('Error', err)
-            throw err
         })
         .on('end', () => {
+            if (wrong) return;
 
-            if (wrong == 1) {
-                console.log("Error")
-            }
-            else {
+            const query = `INSERT INTO category(name, type, cost, available, img, dec)
+                          VALUES(${mysql.escape(cat)}, ${mysql.escape(type)}, ${mysql.escape(cost)}, 
+                                 ${mysql.escape(avlvl)}, ${mysql.escape(imgPath)}, ${mysql.escape(des)})`;
 
-                //saveDir = __dirname + '/uploads/';
-                
-                data = "INSERT INTO `category`(`name`, `type`, `cost`, `available`, `img`, `dec`) "+
-                         "VALUES('" +cat + "','" + type + "', '" + cost + "','" +avlvl + "' ,'" + imgPath + "' ,'" + des + "' )"
-                connectDB.query(data, (err, result) => {
+            connectDB.query(query, (err) => {
+                if (err) {
+                    console.error("Insert Error:", err);
+                    return res.render('admin/addhotel', { msg: "", err: "Database Error" });
+                }
+                res.render('admin/addhotel', { msg: "Hotel Added Successfully", err: "" });
+            });
+        });
+};
 
-                    if (err) {
-                        throw err;
-                    }
-                    else {
-                        res.render('admin/addhotel', { msg: "Data Insert Successfuly", err: "" });
-                    }
-                });
-            }
-        })
-}
+// Get Search Page
+export const getSearch = (req, res) => {
+    res.render('admin/search', { msg: "", err: "" });
+};
 
-//get update page
-exports.getSearch = (req, res, next) => {
-    res.render('admin/search', { msg: "", err: "" })
-}
-
-//post request
-exports.postSearch = (req, res, next) => {
-    //console.log(req.body);
-
-    var connectDB = mysql.createConnection({
-        host: "localhost",
-        user: "root",
-        password: "",
-        database: "hotel"
-    });
-
-    data = "SELECT * " +
-        "FROM category " +
-        "WHERE name = " + mysql.escape(req.body.cat);
-
-    connectDB.query(data, (err, result) => {
-        if (err) throw err;
-        else {
-            return res.render('admin/update', { msg: "", err: "", data: result });
+// Post Search
+export const postSearch = (req, res) => {
+    const query = `SELECT * FROM category WHERE name = ${mysql.escape(req.body.cat)}`;
+    connectDB.query(query, (err, result) => {
+        if (err) {
+            console.error("Search Error:", err);
+            return res.render('admin/search', { msg: "", err: "Database Error" });
         }
-    })
-
-}
-
-//get update page 
-
-exports.getUpdate = (req, res, next) => {
-    // console.log(req.body);
-    var connectDB = mysql.createConnection({
-        host: "localhost",
-        user: "root",
-        password: "",
-        database: "hotel"
+        res.render('admin/update', { msg: "", err: "", data: result });
     });
+};
 
-    data = "SELECT * " +
-        "FROM category " +
-        "WHERE name = " + mysql.escape(req.body.cat) +
-        " AND type = " + mysql.escape(req.body.type) +
-        " AND cost = " + mysql.escape(req.body.cost);
-
-    connectDB.query(data, (err, result) => {
-        if (err) throw err;
-        else {
-            req.session.info = result[0];
-            res.render('admin/updatePage', { data: result[0] });
+// Get Update Page
+export const getUpdate = (req, res) => {
+    const query = `SELECT * FROM category WHERE name = ${mysql.escape(req.body.cat)}
+                   AND type = ${mysql.escape(req.body.type)}
+                   AND cost = ${mysql.escape(req.body.cost)}`;
+    connectDB.query(query, (err, result) => {
+        if (err) {
+            console.error("Update Fetch Error:", err);
+            return res.render('admin/updatePage', { msg: "", err: "Database Error" });
         }
-    })
-}
-
-//update previous data
-
-exports.updatePrevData = (req, res, next) => {
-
-    var connectDB = mysql.createConnection({
-        host: "localhost",
-        user: "root",
-        password: "",
-        database: "hotel"
+        req.session.info = result[0];
+        res.render('admin/updatePage', { data: result[0] });
     });
+};
 
-    data = "UPDATE category " +
-        "SET type = " + mysql.escape(req.body.type) +
-        ", cost = " + mysql.escape(parseInt(req.body.cost)) +
-        ", available = " + mysql.escape(parseInt(req.body.avlvl)) +
-        ", `dec` = " + mysql.escape(req.body.des) +
-        " WHERE name = " + mysql.escape(req.session.info.name) +
-        " AND type = " + mysql.escape(req.session.info.type) +
-        " AND cost = " + mysql.escape(parseInt(req.session.info.cost))
+// Update Previous Data
+export const updatePrevData = (req, res) => {
+    const query = `UPDATE category SET type = ${mysql.escape(req.body.type)},
+                                      cost = ${mysql.escape(parseInt(req.body.cost))},
+                                      available = ${mysql.escape(parseInt(req.body.avlvl))},
+                                      dec = ${mysql.escape(req.body.des)}
+                  WHERE name = ${mysql.escape(req.session.info.name)}
+                  AND type = ${mysql.escape(req.session.info.type)}
+                  AND cost = ${mysql.escape(parseInt(req.session.info.cost))}`;
 
-    //  console.log(req.session.info);    
-    //  console.log(req.body); 
-    //  console.log(data);        
-
-    connectDB.query(data, (err, result) => {
-        if (err) throw err;
-        else {
-            res.render('admin/search', { msg: "Update Done Successfuly", err: "" })
+    connectDB.query(query, (err) => {
+        if (err) {
+            console.error("Update Error:", err);
+            return res.render('admin/search', { msg: "", err: "Database Error" });
         }
-    })
+        res.render('admin/search', { msg: "Update Successful", err: "" });
+    });
+};
 
-}
-
-//logout
-exports.logout = (req, res, next) => {
+// Logout
+export const logout = (req, res) => {
     req.session.destroy();
     res.render('admin/login', { msg: "", err: "" });
-}
-
+};

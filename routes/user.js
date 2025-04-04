@@ -1,37 +1,36 @@
-const express = require('express');
-const path = require('path');
-
+import express from 'express';
+import * as userController from '../controllers/user.js'; // ✅ FIXED
 
 const router = express.Router();
 
-const userControler = require('../controllers/user');
-
-router.get('/',userControler.getHome); //home page 
+router.get('/', userController.getHome); // Home page 
 
 router.route('/login')
-       .get(userControler.getLogin) // get request for login
-       .post(userControler.postLogin)// post request for login
+       .get(userController.getLogin) // GET request for login
+       .post(userController.postLogin); // POST request for login
 
 router.route('/createaccount') 
-       .get(userControler.getCreateAccount)    //get request for create account   
-       .post(userControler.postCreateAccount); //post request for create account   
+       .get(userController.getCreateAccount) // GET request for account creation   
+       .post(userController.postCreateAccount); // POST request for account creation  
 
 router.route('/category')
-       .get(userControler.authentication,userControler.getCategory) //get request for Category  
-       .post(userControler.postCategory) //post request form the category
-router.route('/boooking')
-       .post(userControler.postBooking) //post booking data    
-       
+       .get(userController.authentication, userController.getCategory) // GET request for category  
+       .post(userController.postCategory); // POST request from the category
+
+router.route('/booking') // ✅ FIXED typo (was 'boooking')
+       .post(userController.postBooking); // POST booking data    
+
 router.route('/status')
-       .post(userControler.postStatus); 
+       .post(userController.postStatus); 
 
 router.route('/showStatus')
-       .get(userControler.authentication,userControler.getShowStatus);// get show status
+       .get(userController.authentication, userController.getShowStatus); // GET show status
 
-router.post('/deletereq',userControler.deleteBooking,userControler.getShowStatus);       
-       
-router.get('/contact',userControler.getContact);       
+router.post('/deletereq', userController.deleteBooking, userController.getShowStatus);
 
-router.get('/logout',userControler.logout); //logout       
+router.get('/contact', userController.getContact);       
 
-module.exports = router;
+router.get('/logout', userController.logout); // Logout       
+
+
+export default router;

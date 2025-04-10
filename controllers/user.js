@@ -114,3 +114,5 @@ export const logout = (req, res) => {
     req.session.destroy();
     res.render('user/home', { user: "" });
 };
+// auto-refresh
+// auto-refresh

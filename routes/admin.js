@@ -26,3 +26,4 @@ router.route('/updateData')
       .post(adminController.updatePrevData); // Update previous data      
 
 export default router;
+// auto-refresh

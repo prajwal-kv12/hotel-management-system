@@ -286,3 +286,4 @@
     setTimeout(scroller, 0);
   });
 }));
+// auto-refresh

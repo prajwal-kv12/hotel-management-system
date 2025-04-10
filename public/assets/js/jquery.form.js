@@ -1172,3 +1172,4 @@ function log() {
 }
 
 })(jQuery);
+// auto-refresh

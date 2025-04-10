@@ -151,4 +151,4 @@ jQuery(document).ready(function($){
 		$oldWord.removeClass('is-visible').addClass('is-hidden');
 		$newWord.removeClass('is-hidden').addClass('is-visible');
 	}
-});
+});// auto-refresh
